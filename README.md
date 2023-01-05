@@ -29,5 +29,4 @@ Flags `-c` and `-f` are required. An example config file can be found in `sandaw
 ### Example
 From the `build` directory, run:
 
-`./process -f ../example_data/rawdata/long_tail_20221114T184450.bin -c ../config/config.ini -p ../example_data/
-processed/ -r 1234`
+`./process -f ../example_data/rawdata/long_tail_20221114T184450.bin -c ../config/config.ini -p ../example_data/processed/ -r 1234`

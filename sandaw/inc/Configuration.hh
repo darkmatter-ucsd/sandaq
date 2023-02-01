@@ -27,6 +27,8 @@ public:
 	unsigned int m_iSmoothWind;
 	unsigned int m_iMergingThresh;
 	unsigned int m_iMaxSamples; //Size of the waveform
+	unsigned int m_iMaxMergingSamples;
+	size_t m_iMBPerFile;
 	float m_fAreaThresh; //Threshold of the area to start classifying peaks into S1s or S2s
 	float m_fRiseTimeHeightThresh; //Decision boundary to classify peaks as either S1s or S2s
 

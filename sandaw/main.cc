@@ -2,33 +2,12 @@
 #include <getopt.h>
 #include <string>
 #include <numeric>
-
-#include <TCanvas.h>
-#include <TROOT.h>
-#include <TApplication.h>
-#include <TSystem.h>
-#include <TTree.h>
-#include <TBranch.h>
-#include <TArray.h>
-#include <TFile.h>
+#include <filesystem>
 
 #include "RawDataProcessor.hh"
 #include "PeaksProcessor.hh"
 #include "EventsProcessor.hh"
 #include "Timer.hh"
-
-template<typename T>
-std::vector<size_t> argsort(const std::vector<T>& array) {
-	std::vector<size_t> indices(array.size());
-	std::iota(indices.begin(), indices.end(), 0);
-	std::sort(indices.begin(), indices.end(),
-		[&array](int left, int right) -> bool {
-		// sort indices according to corresponding array element
-		return array[left] < array[right];
-	});
-
-	return indices;
-}
 
 int main(int argc, char* argv[]) {
 	int c = 0;
@@ -113,12 +92,10 @@ int main(int argc, char* argv[]) {
 	SandixPeaksProcessor* pPeaksProcessor = new SandixPeaksProcessor(pConfig);
 	SandixEventsProcessor* pEventsProcessor = new SandixEventsProcessor(pConfig);
 
-	if (bSaveHits) {
-		pRawDataProcessor->SetOutputFile(sHitsFile);
-	}
+	// if (bSaveHits) {
+	// 	pRawDataProcessor->SetOutputFile(sHitsFile);
+	// }
 
-	Peaks_t PeaksBuffer;
-	Events_t EventsBuffer;
 	int S2Count;
 
 	std::cout << "PMT Gains has size of "<<pConfig->m_dPMTGains.size()<<": ";
@@ -136,13 +113,13 @@ int main(int argc, char* argv[]) {
 	std::cout<<"Peak processing took: ";
 	{
 		Timer timer;
-		S2Count = pPeaksProcessor->ProcessPeaks(pRawDataProcessor->Hits, PeaksBuffer, bOutfileExists, sOutFile, sRunID);
+		S2Count = pPeaksProcessor->ProcessPeaks(pRawDataProcessor->Hits, bOutfileExists, sOutFile, sRunID);
 	}
 
 	std::cout<<"Event processing took: ";
 	{
 		Timer timer;
-		pEventsProcessor->ProcessEvents(S2Count, PeaksBuffer, EventsBuffer, bOutfileExists, sOutFile, sRunID);
+		pEventsProcessor->ProcessEvents(S2Count, pPeaksProcessor->Peaks, bOutfileExists, sOutFile, sRunID);
 	}
 
 	delete pConfig;

@@ -56,7 +56,7 @@ void SandixEventsProcessor::WritePeaks(Peaks_t& p, std::ofstream& outStream){
     outStream.write((char*)&p.areaPerChannel[0], sizeof(float) * m_pConfig->m_iNChannels * iNumEntries);
 }
 
-void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t& Events, bool bSave, std::string sOutFile, std::string sRunID) {
+void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, bool bSave, std::string sOutFile, std::string sRunID) {
     	//Setup the output file saving
 	std::string sOutFileEvents;
 
@@ -92,7 +92,7 @@ void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t&
     Events.driftTime.resize(iNumEvents, 0.);
     Events.numS1s.resize(iNumEvents, 0);
     Events.numS2s.resize(iNumEvents, 0);
-    std::cout<< "Allocated memory for the events\n";
+    // std::cout<< "Allocated memory for the events\n";
 
     //Set up the buffer for a single event's peaks
     uint8_t iCurrentType;

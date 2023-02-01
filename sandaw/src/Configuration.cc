@@ -10,6 +10,7 @@ SandixConfiguration::SandixConfiguration(std::string& sConfigFile, bool bDebug =
     m_iOnChannels = r.GetVector<unsigned int>("adc", "OnChannels");
     m_iRecordLength = r.Get<unsigned int>("adc", "RecordLength");
     m_iNChannels = m_iNBoards * m_iNChannelsPerBoard;
+    m_iMBPerFile = r.Get<size_t>("adc", "MBPerFile");
     
     //Peak processing settings
     const auto& dGains = r.GetVector<float>("peaks", "PMTGains");
@@ -19,6 +20,7 @@ SandixConfiguration::SandixConfiguration(std::string& sConfigFile, bool bDebug =
     }
     m_iSmoothWind = r.Get<unsigned int>("peaks", "SmoothWind");
     m_iMergingThresh = r.Get<unsigned int>("peaks", "MergingThresh");
+    m_iMaxMergingSamples = r.Get<unsigned int>("peaks", "MaxMergingSamples");
     m_iMaxSamples = r.Get<unsigned int>("peaks", "MaxSamples");
     m_fAreaThresh = r.Get<unsigned int>("peaks", "AreaThresh");
     m_fRiseTimeHeightThresh = r.Get<unsigned int>("peaks", "RiseTimeHeightThresh");

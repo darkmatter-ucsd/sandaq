@@ -5,16 +5,6 @@
 #include "Types.hh"
 #include "Configuration.hh"
 
-//ROOT
-#include <TCanvas.h>
-#include <TROOT.h>
-#include <TApplication.h>
-#include <TSystem.h>
-#include <TTree.h>
-#include <TBranch.h>
-#include <TArray.h>
-#include <TFile.h>
-
 //C++ packages
 #include <fstream>
 
@@ -23,9 +13,9 @@ public:
     SandixRawDataProcessor(SandixConfiguration* pConfig);
     ~SandixRawDataProcessor();
 
-    void SetRootFile();
+    // void SetRootFile();
     void SetData(std::string& sBinFile);
-    void SetOutputFile(std::string& sOutputFile) { m_sOutputFile = sOutputFile; };
+    // void SetOutputFile(std::string& sOutputFile) { m_sOutputFile = sOutputFile; };
 
     void ProcessRawData(std::string& sBinFile, bool bSave);
 
@@ -35,14 +25,15 @@ public:
 private:
     SandixConfiguration* m_pConfig;
 
-    unsigned int iNumWords;
+    unsigned int m_iNumWords;
 
     std::vector<uint32_t> m_iData;
+    // uint32_t* m_iData;
 
-    TFile* m_tHitsFile;
-    TTree* m_tHitsTree;
+    // TFile* m_tHitsFile;
+    // TTree* m_tHitsTree;
 
-    std::string m_sOutputFile = "output.root";
+    // std::string m_sOutputFile = "output.root";
 
     uint16_t m_iChannel;
     int64_t m_iTriggerTime;

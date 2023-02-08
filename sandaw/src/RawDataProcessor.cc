@@ -30,27 +30,29 @@ void SandixRawDataProcessor::SetData(std::string& sBinFile) {
     // std::cout << "Binary file is " << size << " bytes" << std::endl;
 }
 
-// void SandixRawDataProcessor::SetRootFile() {
-//     m_tHitsFile = new TFile(m_sOutputFile.c_str(), "RECREATE");
-//     m_tHitsTree = new TTree("hits", "Raw per-channel hits");
+void SandixRawDataProcessor::SetRootFile() {
+    m_tHitsFile = new TFile(m_sOutputFile.c_str(), "RECREATE");
+    m_tHitsTree = new TTree("hits", "Raw per-channel hits");
 
-//     m_tHitsTree->Branch("channel", &m_iChannel, "channel/s");
-//     m_tHitsTree->Branch("trigger_time", &m_iTriggerTime, "trigger_time/l");
-//     m_tHitsTree->Branch("start_time", &m_iStartTime, "start_time/l");
-//     m_tHitsTree->Branch("end_time", &m_iEndTime, "end_time/l");
-//     m_tHitsTree->Branch("baseline", &m_iBaseline, "baseline/s");
-//     m_tHitsTree->Branch("waveform", "vector<int>", &m_iWaveform);
-// }
+    m_tHitsTree->Branch("channel", &m_iChannel, "channel/s");
+    m_tHitsTree->Branch("trigger_time", &m_iTriggerTime, "trigger_time/l");
+    m_tHitsTree->Branch("start_time", &m_iStartTime, "start_time/l");
+    m_tHitsTree->Branch("end_time", &m_iEndTime, "end_time/l");
+    m_tHitsTree->Branch("baseline", &m_iBaseline, "baseline/s");
+    m_tHitsTree->Branch("saturated_samples", &m_iSaturatedSamples, "baseline/i");
+    m_tHitsTree->Branch("waveform", "vector<int>", &m_iWaveform);
+}
 
 
 
-void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
+void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile, std::string& sOutFile,
     bool bSave = false) {
     
     SetData(sBinFile);
 
-    // if (bSave)
-    //     SetRootFile();
+    if (bSave)
+        SetOutputFile(sOutFile);
+        SetRootFile();
 
     bool bEventHeader = true; //flag for reading the event header
     bool bChannelHeader = false; //flag for reading the channel header
@@ -69,7 +71,7 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
     int iSamp0, iSamp1;
     unsigned int iHitCount = 0;
     unsigned int iWfCounter = 0;
-    // std::ofstream outFile(m_sOutputFile.c_str(), std::ios::out | std::ios::binary);
+    std::ofstream outFile(m_sOutputFile.c_str(), std::ios::out | std::ios::binary);
 
     int iMaxSize = (int) (m_iNumWords/(10 * m_pConfig->m_iRecordLength/2));
     Hits.channels.reserve(iMaxSize); //Set the channel number
@@ -98,6 +100,7 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
 
         for (int chn = 0; chn < iNumOnChannels; chn++) {
             m_iChannel = iOnChannels[chn];
+            m_iSaturatedSamples = 0;
 
             iChannelSize = m_iData[wc] & ((1 << 23) - 1);
             iTTSLSBs = m_iData[wc + 1];
@@ -114,6 +117,10 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
                 iSamp1 = (m_iData[wc] & (((1 << 16) - 1)<<16))>>16;
                 m_iWaveform[iWfCounter] = m_iBaseline - iSamp0;
                 m_iWaveform[iWfCounter+1] = m_iBaseline - iSamp1;
+
+                if (iSamp0==0) m_iSaturatedSamples++;
+                if (iSamp1==0) m_iSaturatedSamples++; 
+
                 iWfCounter+=2;
                 wc += 1;
             }
@@ -125,22 +132,23 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
             Hits.startTimes.emplace_back(m_iStartTime);
             Hits.endTimes.emplace_back(m_iEndTime);
             Hits.baselines.emplace_back(m_iBaseline);
+            Hits.saturatedSamples.emplace_back(m_iSaturatedSamples);
             Hits.waveforms.emplace_back(m_iWaveform);
             ++iHitCount;
-            // if (bSave)
-            //     m_tHitsTree->Fill();
+            if (bSave)
+                m_tHitsTree->Fill();
     
-            // m_iWaveform.clear();
+            m_iWaveform.clear();
         }
     }
 
     // std::cout << "\nHit count: "<<iHitCount<<"\n";
     // std::cout << "\nAllocated size: "<<iMaxSize<<"\n";
 
-    // if (bSave) {
-    //     m_tHitsTree->Write();
-    //     m_tHitsFile->Close();
-    //     outFile.close();
-    // }
+    if (bSave) {
+        m_tHitsTree->Write();
+        m_tHitsFile->Close();
+        outFile.close();
+    }
 
 }

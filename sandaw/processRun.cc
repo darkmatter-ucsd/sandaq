@@ -40,8 +40,8 @@ void ProcessData(std::string config_file, bool debug, std::string rawdata_file,
 	SandixEventsProcessor* pEventsProcessor = new SandixEventsProcessor(pConfig);
 
 	int S2Count;
-
-	pRawDataProcessor->ProcessRawData(rawdata_file, false);
+	std::string defaultOutFile = "output.root";
+	pRawDataProcessor->ProcessRawData(rawdata_file, defaultOutFile, false);
 	S2Count = pPeaksProcessor->ProcessPeaks(pRawDataProcessor->Hits, true, output_dir, seg);
 	pEventsProcessor->ProcessEvents(S2Count, pPeaksProcessor->Peaks, true, output_dir, seg);
 

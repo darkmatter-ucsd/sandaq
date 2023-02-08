@@ -1,0 +1,5 @@
+/home/daqtest/Processor/sandaq/sandaw/build/CMakeFiles/process.dir
+/home/daqtest/Processor/sandaq/sandaw/build/CMakeFiles/processRun.dir
+/home/daqtest/Processor/sandaq/sandaw/build/CMakeFiles/SandixProcessor.dir
+/home/daqtest/Processor/sandaq/sandaw/build/CMakeFiles/edit_cache.dir
+/home/daqtest/Processor/sandaq/sandaw/build/CMakeFiles/rebuild_cache.dir

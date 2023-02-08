@@ -133,17 +133,31 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 		HitsChannels[Hits.channels[i]].startTimes.push_back(Hits.startTimes[i]);
 		HitsChannels[Hits.channels[i]].endTimes.push_back(Hits.endTimes[i]);
 		HitsChannels[Hits.channels[i]].baselines.push_back(Hits.baselines[i]);
+		HitsChannels[Hits.channels[i]].saturatedSamples.push_back(Hits.saturatedSamples[i]);
 		HitsChannels[Hits.channels[i]].waveforms.push_back(Hits.waveforms[i]);
 	}
 
 	for (int c = 0; c<m_pConfig->m_iNChannels; c++){
 		iNHitsPerChannel[c] = HitsChannels[c].startTimes.size();
+		// std::cout << "Channel "<<c<<" has "<< iNHitsPerChannel[c] << " hits\n";
+		// std::cout << "Channel "<<c<<" start times: ";
+		// for (int s = 0; s < iNHitsPerChannel[c]; s++){
+		// 	std::cout << HitsChannels[c].startTimes[s] << " ";
+		// }
+		// std::cout<<'\n';
+
+		// std::cout << "Channel "<<c<<" end times: ";
+		// for (int s = 0; s < iNHitsPerChannel[c]; s++){
+		// 	std::cout << HitsChannels[c].endTimes[s] << " ";
+		// }
+		// std::cout<<'\n';
 	}
 
 	//
 	int iCoincidence = 0;
 	int iChannelCount = 0;
 	int iS2Count = 0;
+	uint32_t iSaturatedSamples = 0;
 	int iSampleShift;
 	int64_t iCurrentStart;
 	int64_t iCurrentEnd;
@@ -180,6 +194,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 	Peaks.riseTimeArea.reserve(iWindowStarts.size());
 	Peaks.wfSamples.reserve(iWindowStarts.size());
 	Peaks.dt.reserve(iWindowStarts.size());
+	Peaks.saturatedSamples.reserve(iWindowStarts.size());
 	Peaks.areaPerChannel.reserve(iWindowStarts.size() * m_pConfig->m_iOnChannels.size());
 
 	//Downsampling numbers
@@ -188,7 +203,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 	//Window loop, this determines the number of hits
 	for (int w = 0; w < iWindowStarts.size(); w++) {
 
-		// std::cout << "Window " << w<< '\n';
+		// std::cout << "Window " << w<< " of "<<iWindowStarts.size()<<'\n';
 		// std::this_thread::sleep_for(100ms);
 
 		iWindowSize = (iWindowEnds[w] - iWindowStarts[w]) / 4 ;//+ 1;
@@ -202,19 +217,18 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 		std::fill(m_iDownsampledWaveform.begin(), m_iDownsampledWaveform.begin() + m_pConfig->m_iMaxSamples, 0.);
 
 		//Channel loop
+		iSaturatedSamples = 0;
 		for (unsigned int ch : m_pConfig->m_iOnChannels) {
 			//The start time of the current hit
+			// std::cout<<"Channel "<<ch<<" is on index "<<iChannelHitIndex[ch]<<'\n';
+
 			iCurrentStart = HitsChannels[ch].startTimes[iChannelHitIndex[ch]];
 			iCurrentEnd = HitsChannels[ch].endTimes[iChannelHitIndex[ch]];
 			bInWindow = (iWindowStarts[w] <= iCurrentStart) && (iCurrentEnd <= iWindowEnds[w]);
-
 			dChannelArea = 0.;
 			//Hit loop per channel
 			while ((iCurrentStart < iWindowEnds[w])&&(iChannelHitIndex[ch] < iNHitsPerChannel[ch])) {
-
-				iCurrentStart = HitsChannels[ch].startTimes[iChannelHitIndex[ch]];
-				iCurrentEnd = HitsChannels[ch].endTimes[iChannelHitIndex[ch]];
-				bInWindow = (iWindowStarts[w] <= iCurrentStart) && (iCurrentEnd <= iWindowEnds[w]);
+				// std::cout << "Channel " << ch << " is in peak " << w << " \n";
 
 				if (bInWindow) {
 					//Add the channel waveforms together for a combined waveform
@@ -224,10 +238,14 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 						dMergedWaveform[iSampleShift + s] += dTempArea;
 						dChannelArea += dTempArea;
 					}
+					iSaturatedSamples += HitsChannels[ch].saturatedSamples[iChannelHitIndex[ch]];
 					iChannelCount++;
 				}
 				
 				iChannelHitIndex[ch]++;
+				iCurrentStart = HitsChannels[ch].startTimes[iChannelHitIndex[ch]];
+				iCurrentEnd = HitsChannels[ch].endTimes[iChannelHitIndex[ch]];
+				bInWindow = (iWindowStarts[w] <= iCurrentStart) && (iCurrentEnd <= iWindowEnds[w]);
 			}//End hit loop
 
 			Peaks.areaPerChannel.push_back(dChannelArea);
@@ -281,6 +299,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 		Peaks.range90pArea.push_back(m_d90pWidth);
 		Peaks.riseTimeHeight.push_back(m_dRiseTimeHeight);
 		Peaks.riseTimeArea.push_back(m_dRiseTimeArea);
+		Peaks.saturatedSamples.push_back(iSaturatedSamples);
 
 		//Peak classification
 		if (dCumSum<m_pConfig->m_fAreaThresh){
@@ -316,6 +335,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 		outFilePeaks.write((char*)&Peaks.riseTimeArea[0], sizeof(float) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.wfSamples[0], sizeof(uint32_t) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.dt[0], sizeof(uint32_t) * iNumPeaks);
+		outFilePeaks.write((char*)&Peaks.saturatedSamples[0], sizeof(uint32_t) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.areaPerChannel[0], sizeof(float) * m_pConfig->m_iNChannels * iNumPeaks);
 
 		outFilePeaks.close();

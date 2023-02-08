@@ -4,6 +4,15 @@
 #include <numeric>
 #include <filesystem>
 
+#include <TCanvas.h>
+#include <TROOT.h>
+#include <TApplication.h>
+#include <TSystem.h>
+#include <TTree.h>
+#include <TBranch.h>
+#include <TArray.h>
+#include <TFile.h>
+
 #include "RawDataProcessor.hh"
 #include "PeaksProcessor.hh"
 #include "EventsProcessor.hh"
@@ -107,7 +116,7 @@ int main(int argc, char* argv[]) {
 	std::cout<<"Hit processing took: ";
 	{
 		Timer timer;
-		pRawDataProcessor->ProcessRawData(sBinFile, bSaveHits);
+		pRawDataProcessor->ProcessRawData(sBinFile, sHitsFile, bSaveHits);
 	}
 
 	std::cout<<"Peak processing took: ";

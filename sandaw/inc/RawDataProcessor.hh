@@ -35,20 +35,23 @@ public:
 private:
     SandixConfiguration* m_pConfig;
 
-    unsigned int iNumWords;
+    unsigned int m_iNumWords;
 
     std::vector<uint32_t> m_iData;
+    // uint32_t* m_iData;
 
     TFile* m_tHitsFile;
     TTree* m_tHitsTree;
 
     std::string m_sOutputFile = "output.root";
 
+    uint32_t m_iWindowNumber;
     uint16_t m_iChannel;
     int64_t m_iTriggerTime;
     int64_t m_iStartTime;
     int64_t m_iEndTime;
     uint16_t m_iBaseline;
+    uint32_t m_iSaturatedSamples;
     std::vector<int> m_iWaveform;
 };
 

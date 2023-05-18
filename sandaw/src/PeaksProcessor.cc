@@ -1,3 +1,7 @@
+#include <thread>
+#include <chrono>
+using namespace std::chrono_literals;
+
 #include "PeaksProcessor.hh"
 
 SandixPeaksProcessor::SandixPeaksProcessor(SandixConfiguration* pConfig) {
@@ -56,6 +60,9 @@ float SandixPeaksProcessor::PercentileTime(std::vector<float>& dCWf, float dPerc
 	}
 	s--;
 
+	if (s<0) s = 0;
+	if (s==iSize) s--;
+
 	//Interpolate over the boundary
 	return 4 * (s + (dPercentile - dCWf[s] / dTotalArea) / ((dCWf[s + 1] - dCWf[s]) / dTotalArea));
 }
@@ -79,12 +86,15 @@ float SandixPeaksProcessor::HeightTime(std::vector<float>& dWf, float dPercentHe
 	}
 	s--;
 
+	if (s<0) s = 0;
+	if (s==iSize) s--;
+
 	//Interpolate over the boundary
 	return 4 * (s + (dPercentHeight - dWf[s] / dMaxHeight) / ((dWf[s + 1] - dWf[s]) / dMaxHeight));
 }
 
 
-int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave = false,
+int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
  std::string sOutFile = "", std::string sRunID = "") {
 	
 	//Setup the output file saving
@@ -115,7 +125,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 	unsigned int iNumPeaks = iWindowStarts.size();
 	Peaks.startTimes = iWindowStarts;
 	Peaks.endTimes = iWindowEnds;
-
+	std::vector<int64_t> iNHitsPerChannel(m_pConfig->m_iNChannels);
 	//Separate the hits into hits per channel
 	for (int i = 0; i < iNumHits; i++) {
 		HitsChannels[Hits.channels[i]].channels.push_back(Hits.channels[i]);
@@ -123,13 +133,19 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 		HitsChannels[Hits.channels[i]].startTimes.push_back(Hits.startTimes[i]);
 		HitsChannels[Hits.channels[i]].endTimes.push_back(Hits.endTimes[i]);
 		HitsChannels[Hits.channels[i]].baselines.push_back(Hits.baselines[i]);
+		HitsChannels[Hits.channels[i]].saturatedSamples.push_back(Hits.saturatedSamples[i]);
 		HitsChannels[Hits.channels[i]].waveforms.push_back(Hits.waveforms[i]);
+	}
+
+	for (int c = 0; c<m_pConfig->m_iNChannels; c++){
+		iNHitsPerChannel[c] = HitsChannels[c].startTimes.size();
 	}
 
 	//
 	int iCoincidence = 0;
 	int iChannelCount = 0;
 	int iS2Count = 0;
+	uint32_t iSaturatedSamples = 0;
 	int iSampleShift;
 	int64_t iCurrentStart;
 	int64_t iCurrentEnd;
@@ -147,7 +163,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 	float dChannelArea;
 	// std::vector<float> dAreaPerChannel(m_pConfig->m_iNChannels, 0.);
 
-	int iMaxWfSamples = 20000;
+	int iMaxWfSamples = m_pConfig->m_iMaxMergingSamples;
 	unsigned int iDownsampleSamples;
 	dMergedWaveform.resize(iMaxWfSamples, 0.);
 	dCumWaveform.resize(iMaxWfSamples, 0.);
@@ -174,14 +190,21 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 	//Window loop, this determines the number of hits
 	for (int w = 0; w < iWindowStarts.size(); w++) {
 
+		// std::cout << "Window " << w<< '\n';
+		// std::this_thread::sleep_for(100ms);
+
 		iWindowSize = (iWindowEnds[w] - iWindowStarts[w]) / 4 ;//+ 1;
-		// dMergedWaveform.resize(iWindowSize, 0.);
+		// if (iWindowSize>iMaxWfSamples){
+		// 	iWindowEnds[w] = iWindowStarts[w] + iMaxWfSamples * 4;
+		// 	iWindowSize = iMaxWfSamples;
+		// 	std::cout<< "\nWARNING: Waveform went over samples\n";
+		// }
 		std::fill(dMergedWaveform.begin(), dMergedWaveform.begin() + iWindowSize, 0.);
 		std::fill(dCumWaveform.begin(), dCumWaveform.begin() + iWindowSize, 0.);
 		std::fill(m_iDownsampledWaveform.begin(), m_iDownsampledWaveform.begin() + m_pConfig->m_iMaxSamples, 0.);
-		// std::fill(dAreaPerChannel.begin(), dAreaPerChannel.end(), 0.);
 
 		//Channel loop
+		iSaturatedSamples = 0;
 		for (unsigned int ch : m_pConfig->m_iOnChannels) {
 			//The start time of the current hit
 			iCurrentStart = HitsChannels[ch].startTimes[iChannelHitIndex[ch]];
@@ -190,7 +213,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 
 			dChannelArea = 0.;
 			//Hit loop per channel
-			while (iCurrentStart < iWindowEnds[w]) {
+			while ((iCurrentStart < iWindowEnds[w])&&(iChannelHitIndex[ch] < iNHitsPerChannel[ch])) {
 				if (bInWindow) {
 					//Add the channel waveforms together for a combined waveform
 					iSampleShift = ((iCurrentStart - iWindowStarts[w]) / 4);
@@ -198,11 +221,11 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 						dTempArea = (float) HitsChannels[ch].waveforms[iChannelHitIndex[ch]][s]/m_pConfig->m_dPMTGains[ch];
 						dMergedWaveform[iSampleShift + s] += dTempArea;
 						dChannelArea += dTempArea;
-						// dAreaPerChannel[ch] += dTempArea;
 					}
+					iSaturatedSamples += HitsChannels[ch].saturatedSamples[iChannelHitIndex[ch]];
 					iChannelCount++;
 				}
-
+				
 				iChannelHitIndex[ch]++;
 				iCurrentStart = HitsChannels[ch].startTimes[iChannelHitIndex[ch]];
 				iCurrentEnd = HitsChannels[ch].endTimes[iChannelHitIndex[ch]];
@@ -260,6 +283,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 		Peaks.range90pArea.push_back(m_d90pWidth);
 		Peaks.riseTimeHeight.push_back(m_dRiseTimeHeight);
 		Peaks.riseTimeArea.push_back(m_dRiseTimeArea);
+		Peaks.saturatedSamples.push_back(iSaturatedSamples);
 
 		//Peak classification
 		if (dCumSum<m_pConfig->m_fAreaThresh){
@@ -276,19 +300,6 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 
 		iCoincidence = 0;
 	}
-
-	//Peak classification
-	// for (int w = 0; w < iWindowStarts.size(); w++) {
-	// 	if (Peaks.areas[w]<m_pConfig->m_fAreaThresh){
-	// 		Peaks.types.push_back(0);
-	// 	}
-	// 	else{
-	// 		if (Peaks.riseTimeHeight[w]<m_pConfig->m_fRiseTimeHeightThresh)
-	// 			Peaks.types.push_back(1);
-	// 		else
-	// 			Peaks.types.push_back(2);
-	// 	}
-	// }
 
 
 	if (bSave){
@@ -308,6 +319,7 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave 
 		outFilePeaks.write((char*)&Peaks.riseTimeArea[0], sizeof(float) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.wfSamples[0], sizeof(uint32_t) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.dt[0], sizeof(uint32_t) * iNumPeaks);
+		outFilePeaks.write((char*)&Peaks.saturatedSamples[0], sizeof(uint32_t) * iNumPeaks);
 		outFilePeaks.write((char*)&Peaks.areaPerChannel[0], sizeof(float) * m_pConfig->m_iNChannels * iNumPeaks);
 
 		outFilePeaks.close();

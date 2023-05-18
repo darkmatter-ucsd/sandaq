@@ -21,6 +21,7 @@ void SandixEventsProcessor::AddPeakInplace(Peaks_t& PeakBuffer, Peaks_t& PeakToA
     PeakBuffer.range90pArea[IndexBuf] = (PeakToAdd.range90pArea[IndexAdd]);
     PeakBuffer.riseTimeHeight[IndexBuf] = (PeakToAdd.riseTimeHeight[IndexAdd]);
     PeakBuffer.riseTimeArea[IndexBuf] = (PeakToAdd.riseTimeArea[IndexAdd]);
+    PeakBuffer.saturatedSamples[IndexBuf] = (PeakToAdd.saturatedSamples[IndexAdd]);
     for (int i = 0; i<m_pConfig->m_iOnChannels.size(); i++){
         PeakBuffer.areaPerChannel[IndexBuf*m_pConfig->m_iOnChannels.size() + i] = (PeakToAdd.areaPerChannel[IndexAdd*m_pConfig->m_iOnChannels.size() + i]);
     }
@@ -38,6 +39,7 @@ void SandixEventsProcessor::CallocPeaks(Peaks_t& PeakBuffer, int iNumEvents){
     PeakBuffer.range90pArea.resize(iNumEvents, 0.);
     PeakBuffer.riseTimeHeight.resize(iNumEvents, 0.);
     PeakBuffer.riseTimeArea.resize(iNumEvents, 0.);
+    PeakBuffer.saturatedSamples.resize(iNumEvents, 0.);
     PeakBuffer.areaPerChannel.resize(iNumEvents*m_pConfig->m_iOnChannels.size(), 0.);
 }
 
@@ -53,10 +55,11 @@ void SandixEventsProcessor::WritePeaks(Peaks_t& p, std::ofstream& outStream){
     outStream.write((char*)&p.range90pArea[0], sizeof(float) * iNumEntries);
     outStream.write((char*)&p.riseTimeHeight[0], sizeof(float) * iNumEntries);
     outStream.write((char*)&p.riseTimeArea[0], sizeof(float) * iNumEntries);
+    outStream.write((char*)&p.saturatedSamples[0], sizeof(uint32_t) * iNumEntries);
     outStream.write((char*)&p.areaPerChannel[0], sizeof(float) * m_pConfig->m_iNChannels * iNumEntries);
 }
 
-void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t& Events, bool bSave, std::string sOutFile, std::string sRunID) {
+void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, bool bSave, std::string sOutFile, std::string sRunID) {
     	//Setup the output file saving
 	std::string sOutFileEvents;
 
@@ -92,7 +95,7 @@ void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t&
     Events.driftTime.resize(iNumEvents, 0.);
     Events.numS1s.resize(iNumEvents, 0);
     Events.numS2s.resize(iNumEvents, 0);
-    std::cout<< "Allocated memory for the events\n";
+    // std::cout<< "Allocated memory for the events\n";
 
     //Set up the buffer for a single event's peaks
     uint8_t iCurrentType;
@@ -106,8 +109,8 @@ void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t&
     //Primary event processing loop
     int iPeakIndex = 0, iPeakCount = 0;
     for (int w = 0; w < iNumEvents; w++) {
-        
-        while (Peaks.startTimes[iPeakIndex]<=Events.eventWindowEndTime[w]){
+        // std::cout << "processing event "<< w << " of " << iNumEvents << "\n";
+        while ((iPeakIndex<Peaks.startTimes.size())&&(Peaks.startTimes[iPeakIndex]<=Events.eventWindowEndTime[w])){
             iCurrentType = Peaks.types[iPeakIndex];
             //If the peak is an S1 or an S2 then increment the peak count, and copy the data over
             //If we've reached more than the total allowable peaks in an event, however, skip
@@ -119,6 +122,7 @@ void SandixEventsProcessor::ProcessEvents(int iNumS2s, Peaks_t& Peaks, Events_t&
             //Add the peak index
             iPeakIndex++;
         }
+
         Events.numS1s[w] = iNTypesInEvent[0];
         Events.numS2s[w] = iNTypesInEvent[1];
 

@@ -2,6 +2,10 @@
 #include <getopt.h>
 #include <string>
 #include <numeric>
+// #include <filesystem>
+#include <chrono>
+#include <thread>
+using namespace std::chrono_literals;
 
 #include <TCanvas.h>
 #include <TROOT.h>
@@ -17,36 +21,25 @@
 #include "EventsProcessor.hh"
 #include "Timer.hh"
 
-template<typename T>
-std::vector<size_t> argsort(const std::vector<T>& array) {
-	std::vector<size_t> indices(array.size());
-	std::iota(indices.begin(), indices.end(), 0);
-	std::sort(indices.begin(), indices.end(),
-		[&array](int left, int right) -> bool {
-		// sort indices according to corresponding array element
-		return array[left] < array[right];
-	});
-
-	return indices;
-}
-
 int main(int argc, char* argv[]) {
 	int c = 0;
 	bool bConfigFileExists = false;
 	bool bBinfileExists = false;
 	bool bOutfileExists = false;
 	bool bRunIDLoaded = false;
+	bool bMetaDataLoaded = false;
 	bool bSaveHits = false; //Don't usually do this. It's slow and mainly for debugging.
 	bool bDebug = false;
 
 	std::string sConfigFile;
 	std::string sBinFile; //Binary input file
 	std::string sOutFile;
-	std::string sHitsFile;
+	std::string sHitsFile = "output.root";
+	std::string sMetaData;
 	std::string sRunID;
 	std::string sPeaksPath;
 
-	while ((c = getopt(argc, argv, "c:f:p:r:h:v:")) != -1)
+	while ((c = getopt(argc, argv, "c:f:p:r:m:h:v:")) != -1)
 	{
 		switch (c)
 		{
@@ -72,6 +65,12 @@ int main(int argc, char* argv[]) {
 			bRunIDLoaded = true;
 			sRunID.assign(optarg);
 			std::cout << "Run ID: " << sRunID << '\n';
+			break;
+
+		case 'm':
+			bMetaDataLoaded = true;
+			sMetaData.assign(optarg);
+			std::cout << "Metadata: " << sMetaData << '\n';
 			break;
 
 		case 'h':
@@ -104,11 +103,16 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+	if (!bMetaDataLoaded) {
+		std::cout << "ERROR: No metadata, cannot process data" << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
 	if (bOutfileExists & bRunIDLoaded) {
 		sPeaksPath = sOutFile + "peaks_" + sRunID + ".bin";
 	}
 
-	SandixConfiguration* pConfig = new SandixConfiguration(sConfigFile, bDebug);
+	SandixConfiguration* pConfig = new SandixConfiguration(sConfigFile, sMetaData, bDebug);
 	SandixRawDataProcessor* pRawDataProcessor = new SandixRawDataProcessor(pConfig);
 	SandixPeaksProcessor* pPeaksProcessor = new SandixPeaksProcessor(pConfig);
 	SandixEventsProcessor* pEventsProcessor = new SandixEventsProcessor(pConfig);
@@ -117,8 +121,6 @@ int main(int argc, char* argv[]) {
 		pRawDataProcessor->SetOutputFile(sHitsFile);
 	}
 
-	Peaks_t PeaksBuffer;
-	Events_t EventsBuffer;
 	int S2Count;
 
 	std::cout << "PMT Gains has size of "<<pConfig->m_dPMTGains.size()<<": ";
@@ -127,22 +129,41 @@ int main(int argc, char* argv[]) {
 	}
 	std::cout << "\n";
 
+	std::chrono::time_point<std::chrono::high_resolution_clock> start_time, end_time;
+
 	std::cout<<"Hit processing took: ";
+	// start_time = std::chrono::high_resolution_clock::now();
 	{
 		Timer timer;
 		pRawDataProcessor->ProcessRawData(sBinFile, bSaveHits);
 	}
+	// end_time = std::chrono::high_resolution_clock::now();
+	// auto start = std::chrono::time_point_cast<std::chrono::microseconds> (start_time).time_since_epoch().count();
+	// auto end = std::chrono::time_point_cast<std::chrono::microseconds> (end_time).time_since_epoch().count();
+	// auto duration = end - start;
+	// double ms = duration*0.001;
+	// std::cout << ms <<"ms\n\n";
 
+	std::cout << "Finished processing hits\n";
+
+	
 	std::cout<<"Peak processing took: ";
+	// start_time = std::chrono::high_resolution_clock::now();
 	{
 		Timer timer;
-		S2Count = pPeaksProcessor->ProcessPeaks(pRawDataProcessor->Hits, PeaksBuffer, bOutfileExists, sOutFile, sRunID);
+		S2Count = pPeaksProcessor->ProcessPeaks(pRawDataProcessor->Hits, bOutfileExists, sOutFile, sRunID);
 	}
-
+	// end_time = std::chrono::high_resolution_clock::now();
+	// start = std::chrono::time_point_cast<std::chrono::microseconds> (start_time).time_since_epoch().count();
+	// end = std::chrono::time_point_cast<std::chrono::microseconds> (end_time).time_since_epoch().count();
+	// duration = end - start;
+	// ms = duration*0.001;
+	// std::cout << ms <<"ms\n\n";
+	
 	std::cout<<"Event processing took: ";
 	{
 		Timer timer;
-		pEventsProcessor->ProcessEvents(S2Count, PeaksBuffer, EventsBuffer, bOutfileExists, sOutFile, sRunID);
+		pEventsProcessor->ProcessEvents(S2Count, pPeaksProcessor->Peaks, bOutfileExists, sOutFile, sRunID);
 	}
 
 	delete pConfig;

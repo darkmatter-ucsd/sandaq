@@ -20,7 +20,7 @@ public:
 	~SandixPeaksProcessor();
 
 	std::vector<Hits_t> HitsChannels; //A vector of Hits where HitsChannels[i] is the hits for the ith channel
-	// Peaks_t Peaks;
+	Peaks_t Peaks;
 
 	void PeakWindows(std::vector<int64_t>& start, std::vector<int64_t>& end,
 		std::vector<int64_t>& iWS, std::vector<int64_t>& iWE);
@@ -30,7 +30,7 @@ public:
 
 	void Downsample(std::vector<float>& dWaveForm, unsigned int iSize, uint32_t &iDt, unsigned int &iNumBiggerSamples);
 
-	int ProcessPeaks(Hits_t& Hits, Peaks_t& Peaks, bool bSave, std::string sOutFile, std::string sRunID);
+	int ProcessPeaks(Hits_t& Hits, bool bSave, std::string sOutFile, std::string sRunID);
 
 private:
 	SandixConfiguration* m_pConfig;

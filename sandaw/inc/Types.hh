@@ -12,7 +12,9 @@ typedef struct {
     std::vector<int64_t> startTimes;
     std::vector<int64_t> endTimes;
     std::vector<uint16_t> baselines;
+    std::vector<uint32_t> saturatedSamples;
     std::vector<std::vector<int>> waveforms;
+    std::vector<uint32_t> windowNumber; //Only used for ZLE (i.e. triggered acquisition)
 } Hits_t;
 
 typedef struct {
@@ -29,6 +31,7 @@ typedef struct {
     std::vector<float> riseTimeArea;
     std::vector<uint32_t> wfSamples;
     std::vector<uint32_t> dt;
+    std::vector<uint32_t> saturatedSamples;
     std::vector<float> areaPerChannel;
 } Peaks_t;
 

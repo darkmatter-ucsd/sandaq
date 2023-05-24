@@ -192,13 +192,19 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 
 		// std::cout << "Window " << w<< '\n';
 		// std::this_thread::sleep_for(100ms);
-
 		iWindowSize = (iWindowEnds[w] - iWindowStarts[w]) / 4 ;//+ 1;
 		// if (iWindowSize>iMaxWfSamples){
 		// 	iWindowEnds[w] = iWindowStarts[w] + iMaxWfSamples * 4;
 		// 	iWindowSize = iMaxWfSamples;
 		// 	std::cout<< "\nWARNING: Waveform went over samples\n";
 		// }
+
+		// if (w<100){
+		// 	std::cout <<"Window "<<w<<" start: "<< iWindowStarts[w] <<'\n';
+		// 	std::cout <<"Window "<<w<<" end: "<< iWindowEnds[w] <<'\n';
+		// 	std::cout <<"Window "<<w<<" size: "<< iWindowSize <<'\n';
+		// }
+
 		std::fill(dMergedWaveform.begin(), dMergedWaveform.begin() + iWindowSize, 0.);
 		std::fill(dCumWaveform.begin(), dCumWaveform.begin() + iWindowSize, 0.);
 		std::fill(m_iDownsampledWaveform.begin(), m_iDownsampledWaveform.begin() + m_pConfig->m_iMaxSamples, 0.);
@@ -286,15 +292,32 @@ int SandixPeaksProcessor::ProcessPeaks(Hits_t& Hits, bool bSave = false,
 		Peaks.saturatedSamples.push_back(iSaturatedSamples);
 
 		//Peak classification
-		if (dCumSum<m_pConfig->m_fAreaThresh){
+		// if (dCumSum<m_pConfig->m_fAreaThresh){
+		// 	Peaks.types.push_back(0);
+		// }
+		// else{
+		// 	if (m_dRiseTimeHeight<m_pConfig->m_fRiseTimeHeightThresh)
+		// 		Peaks.types.push_back(1);
+		// 	else{
+		// 		Peaks.types.push_back(2);
+		// 		iS2Count++;
+		// 	}
+		// }
+
+		if (iCoincidence < m_pConfig->m_iCoincidenceThresh){
 			Peaks.types.push_back(0);
 		}
 		else{
-			if (m_dRiseTimeHeight<m_pConfig->m_fRiseTimeHeightThresh)
+			if (m_dRiseTimeHeight<m_pConfig->m_fRiseTimeHeightThresh){
 				Peaks.types.push_back(1);
+			}
 			else{
-				Peaks.types.push_back(2);
-				iS2Count++;
+				if (dCumSum<m_pConfig->m_fS2AreaThresh){
+					Peaks.types.push_back(0);
+				}
+				else{
+					Peaks.types.push_back(2);
+				}
 			}
 		}
 

@@ -160,6 +160,9 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
         }
     }
     else if (m_pConfig->m_sBoardType == "V1720") {
+        int64_t iPreviousTriggerTime = 0;
+        int64_t iNumResets = 0;
+
         for (int wc = 0; wc< m_iNumWords;) {
             //Read in the event header
             iEventSize = m_iData[wc]&0xFFFFFFF;
@@ -169,6 +172,13 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
             m_iWindowNumber = m_iData[wc + 2]&0xFFFFFF;
             iTTSLSBs = m_iData[wc+3];
             iEventTriggerTime = ((int64_t)((iTTSMSBs << 32) + iTTSLSBs)); //8ns increment
+
+            if (iEventTriggerTime < iPreviousTriggerTime){
+                iNumResets++;
+            }
+            iPreviousTriggerTime = iEventTriggerTime;
+
+            iEventTriggerTime += (iNumResets*((int64_t)1<<32));
             wc +=4;
 
             //See which channels are on
@@ -199,6 +209,7 @@ void SandixRawDataProcessor::ProcessRawData(std::string& sBinFile,
 
                     if (iControlFlag == 1){
                         iWfCounter = 0;
+                        m_iSaturatedSamples = 0;
                         m_iBaseline = m_iData[wc];
                         m_iWaveform.resize(2*iControlSampleWords, 0);
                         for (int samp = 0; samp < iControlSampleWords; samp++) {

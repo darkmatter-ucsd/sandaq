@@ -33,12 +33,15 @@ public:
 	unsigned int m_iMaxSamples; //Size of the waveform
 	unsigned int m_iMaxMergingSamples;
 	size_t m_iMBPerFile;
+	unsigned int m_iCoincidenceThresh; //The PMT coincidence needed to start classifying peaks into S1 or S2
+	float m_fS2AreaThresh; //The minimum area of an S2
 	float m_fAreaThresh; //Threshold of the area to start classifying peaks into S1s or S2s
 	float m_fRiseTimeHeightThresh; //Decision boundary to classify peaks as either S1s or S2s
 
 	//Event processing settings
 	int m_iMaxDriftTime;
 	unsigned int m_iMaxPeaksInEvent;
+	float m_fLoneS1AreaThresh; //The minimum area to count a lone S1
 
 private:
 	const float dGainConvert14Bit = 6095.248943620215;

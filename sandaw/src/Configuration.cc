@@ -44,12 +44,15 @@ SandixConfiguration::SandixConfiguration(std::string& sConfigFile, std::string& 
     m_iMergingThresh = r.Get<unsigned int>("peaks", "MergingThresh");
     m_iMaxMergingSamples = r.Get<unsigned int>("peaks", "MaxMergingSamples");
     m_iMaxSamples = r.Get<unsigned int>("peaks", "MaxSamples");
-    m_fAreaThresh = r.Get<unsigned int>("peaks", "AreaThresh");
+    m_fAreaThresh = r.Get<float>("peaks", "AreaThresh"); //Being phased out!
+    m_iCoincidenceThresh = r.Get<unsigned int>("peaks", "CoincidenceThresh");
+    m_fS2AreaThresh = r.Get<float>("peaks", "S2AreaThresh");
     m_fRiseTimeHeightThresh = r.Get<unsigned int>("peaks", "RiseTimeHeightThresh");
 
     //Event processing settings
     m_iMaxDriftTime = r.Get<int>("events", "MaxDriftTime");
     m_iMaxPeaksInEvent = r.Get<int>("events", "MaxPeaksInEvent");
+    m_fLoneS1AreaThresh = r.Get<float>("events", "LoneS1AreaThresh");
 
     /*****CHECKS*****/
 
